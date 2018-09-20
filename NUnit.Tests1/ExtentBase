@@ -1,0 +1,94 @@
+using AventStack.ExtentReports;
+using AventStack.ExtentReports.Reporter;
+using System;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
+namespace NUnit.Tests1.ExtentReportsUtils
+{
+    class ExtentBase
+    {
+        private ExtentBase() { }
+
+        private static ExtentReports extentReports;
+        private static ExtentHtmlReporter htmlReporter;
+        private static readonly Object obj = new Object();
+        public static string extentReportPath
+        {
+            get
+            {
+                string pth = Assembly.GetCallingAssembly().CodeBase;
+                string actualPath = pth.Substring(0, pth.LastIndexOf("Green.Arrow"));
+                string solutionPath = new Uri(actualPath).LocalPath + @"Arrow.SeleniumFramework\ExtentReportsUtils\";
+                return solutionPath + "ExtentHtmlFile.html";
+            }
+        }
+
+        /// <summary>
+        /// This will allow each thread to have an independent ExtentTest
+        /// </summary>
+        [ThreadStatic]
+        private static ExtentTest extentParentTest;
+
+        [ThreadStatic]
+        private static ExtentTest childNodeTest;
+
+        public static ExtentReports extentInstance
+        {
+            get
+            {
+                lock (obj)
+                {
+                    if (extentReports == null)
+                    {
+                        CreateSingletonInstance();
+                    }
+                    return extentReports;
+                }
+            }
+        }
+        private static ExtentReports CreateSingletonInstance()
+        {
+            string pth = Assembly.GetCallingAssembly().CodeBase;
+            string actualPath = pth.Substring(0, pth.LastIndexOf("Green.Arrow"));
+            string solutionPath = new Uri(actualPath).LocalPath+ @"Arrow.SeleniumFramework\ExtentReportsUtils\";
+
+            htmlReporter = new ExtentHtmlReporter(extentReportPath);
+            htmlReporter.LoadConfig(solutionPath + "extent-config.xml");
+            extentReports = new ExtentReports();
+            extentReports.AttachReporter(htmlReporter);
+            extentReports.AddSystemInfo("Project", "Arrow Automation");
+            extentReports.AddSystemInfo("OS", Environment.OSVersion.ToString());            
+            extentReports.AddSystemInfo("HostID", System.Net.Dns.GetHostName());
+            return extentReports;
+        }           
+
+        public static void FlushExtent()
+        {
+            extentInstance.Flush();
+        }
+
+        [MethodImpl(MethodImplOptions.Synchronized)]
+        public static ExtentTest CreateTest(string testName, string category=null, string description = null)
+        {
+            extentParentTest = extentInstance.CreateTest(testName, description);
+            if(!(category==null))
+                extentParentTest.AssignCategory(category);
+            return extentParentTest;
+        }
+
+        [MethodImpl(MethodImplOptions.Synchronized)]
+        public static ExtentTest CreateTestNode(string testName, string description = null)
+        {
+            childNodeTest = extentParentTest.CreateNode(testName, description);
+            return childNodeTest;
+        }
+
+        [MethodImpl(MethodImplOptions.Synchronized)]
+        public static ExtentTest GetTargetTest()
+        {
+            return extentParentTest;
+        }
+
+    }
+}
